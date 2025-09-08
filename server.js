@@ -12,6 +12,7 @@ import { Server } from "socket.io";
 import http from "http";
 import path from "path";
 import fs from "fs";
+import notificationRoutes from "./routes/notificationRoutes.js";
 
 dotenv.config();
 connectDB();
@@ -35,6 +36,7 @@ app.use("/api/proposals", proposalRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/deliverables", deliverableRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 const PORT = process.env.PORT || 5000;
 
