@@ -1,9 +1,9 @@
-// backend/routes/proposalRoutes.js
 import express from "express";
 import auth from "../middleware/authMiddleware.js";
 import {
   createProposal,
   getProposalsForClient,
+  getProposalsForFreelancer,
   acceptProposal,
   rejectProposal,
 } from "../controllers/proposalController.js";
@@ -15,6 +15,9 @@ router.post("/", auth, createProposal);
 
 // Client fetch proposals targeted to their projects
 router.get("/client", auth, getProposalsForClient);
+
+// Freelancer fetch their own proposals
+router.get("/freelancer", auth, getProposalsForFreelancer);
 
 // Client accepts / rejects
 router.patch("/:id/accept", auth, acceptProposal);

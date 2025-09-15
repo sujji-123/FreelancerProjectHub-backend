@@ -1,43 +1,71 @@
-// backend/controllers/proposalController.js
 import Proposal from "../models/Proposal.js";
 import Project from "../models/Project.js";
 import Notification from "../models/Notification.js";
 import User from "../models/User.js";
+import { getSocketIO } from "../utils/socket.js";
 
 /**
  * Freelancer creates a proposal for a project
- * body: { projectId, coverLetter, bidAmount }
  */
 export const createProposal = async (req, res) => {
   try {
-    const { projectId, coverLetter, bidAmount } = req.body;
-    const freelancerId = req.user.id; // auth middleware sets req.user
+    const { projectId, coverLetter = "", bidAmount = 0 } = req.body;
+    const freelancerId = req.user.id;
 
-    const project = await Project.findById(projectId);
+    const project = await Project.findById(projectId).populate("client", "name email");
     if (!project) return res.status(404).json({ msg: "Project not found" });
 
-    const prop = new Proposal({
+    if (String(project.client?._id || project.client) === String(freelancerId)) {
+      return res.status(400).json({ msg: "Cannot apply to your own project" });
+    }
+
+    const already = await Proposal.findOne({ project: projectId, freelancer: freelancerId });
+    if (already) {
+      return res.status(400).json({ msg: "You already applied to this project" });
+    }
+
+    const proposal = new Proposal({
       project: projectId,
       freelancer: freelancerId,
       coverLetter,
       bidAmount,
       status: "pending",
     });
-    await prop.save();
+    await proposal.save();
 
-    // create notification for project owner (client)
-    await Notification.create({
-      user: project.client,
-      type: "proposal_submitted",
+    const freelancer = await User.findById(freelancerId).select("name email");
+
+    const notification = await Notification.create({
+      user: project.client._id || project.client,
+      type: "proposal_received",
       payload: {
         projectId: project._id,
         projectTitle: project.title,
-        proposalId: prop._id,
-        freelancerId,
+        proposalId: proposal._id,
+        freelancerId: freelancer._id,
+        freelancerName: freelancer.name,
       },
     });
 
-    res.status(201).json(prop);
+    try {
+      const io = getSocketIO();
+      if (io) {
+        io.to(`user_${String(project.client._id || project.client)}`).emit("notification", {
+          id: notification._id,
+          type: notification.type,
+          payload: notification.payload,
+          createdAt: notification.createdAt,
+        });
+      }
+    } catch (emitErr) {
+      console.error("Error emitting notification via socket:", emitErr);
+    }
+
+    const populatedProposal = await Proposal.findById(proposal._id)
+      .populate("freelancer", "name email")
+      .populate("project", "title");
+
+    res.status(201).json(populatedProposal);
   } catch (err) {
     console.error("createProposal:", err);
     res.status(500).send("Server Error");
@@ -45,20 +73,22 @@ export const createProposal = async (req, res) => {
 };
 
 /**
- * Get all proposals for client's projects (client only)
- * route: GET /api/proposals/client
+ * Client fetch proposals for their own projects
  */
 export const getProposalsForClient = async (req, res) => {
   try {
-    // find project ids owned by this client
     const clientId = req.user.id;
-    const projects = await Project.find({ client: clientId }, "_id");
-    const projectIds = projects.map((p) => p._id);
-    const proposals = await Proposal.find({ project: { $in: projectIds } })
+    const proposals = await Proposal.find()
+      .populate({
+        path: "project",
+        match: { client: clientId },
+        select: "title client",
+      })
       .populate("freelancer", "name email")
-      .populate("project", "title");
+      .sort({ createdAt: -1 });
 
-    res.json(proposals);
+    const ownProposals = proposals.filter((p) => p.project);
+    res.json(ownProposals);
   } catch (err) {
     console.error("getProposalsForClient:", err);
     res.status(500).send("Server Error");
@@ -66,78 +96,87 @@ export const getProposalsForClient = async (req, res) => {
 };
 
 /**
- * Accept proposal (client) -> marks proposal accepted, sets project.assignedFreelancer and updates project.status to allocated/in-progress
- * route: PATCH /api/proposals/:id/accept
+ * Freelancer fetch proposals they submitted
  */
+export const getProposalsForFreelancer = async (req, res) => {
+  try {
+    const freelancerId = req.user.id;
+    const proposals = await Proposal.find({ freelancer: freelancerId })
+      .populate("project", "title budget status client")
+      .sort({ createdAt: -1 });
+
+    res.json(proposals);
+  } catch (err) {
+    console.error("getProposalsForFreelancer:", err);
+    res.status(500).send("Server Error");
+  }
+};
+
 export const acceptProposal = async (req, res) => {
   try {
-    const propId = req.params.id;
-    const proposal = await Proposal.findById(propId).populate("project");
+    const proposalId = req.params.id;
+    const proposal = await Proposal.findById(proposalId).populate("project");
     if (!proposal) return res.status(404).json({ msg: "Proposal not found" });
 
-    const project = await Project.findById(proposal.project._id);
-    if (String(project.client) !== String(req.user.id)) {
+    if (String(proposal.project.client) !== String(req.user.id)) {
       return res.status(403).json({ msg: "Forbidden" });
     }
 
-    // mark all other proposals for same project as rejected
-    await Proposal.updateMany(
-      { project: project._id, _id: { $ne: propId } },
-      { $set: { status: "rejected" } }
-    );
-
-    // accept this proposal
     proposal.status = "accepted";
     await proposal.save();
 
-    // assign the freelancer to project and update status
-    project.assignedFreelancer = proposal.freelancer;
-    project.status = "allocated";
-    await project.save();
-
-    // create notifications: to freelancer & client
-    await Notification.create({
+    const notif = await Notification.create({
       user: proposal.freelancer,
       type: "proposal_accepted",
-      payload: { projectId: project._id, projectTitle: project.title, proposalId: proposal._id },
+      payload: {
+        projectId: proposal.project._id,
+        projectTitle: proposal.project.title,
+        proposalId: proposal._id,
+      },
     });
 
-    await Notification.create({
-      user: project.client,
-      type: "proposal_accepted_client",
-      payload: { projectId: project._id, projectTitle: project.title, proposalId: proposal._id },
-    });
+    try {
+      const io = getSocketIO();
+      if (io) {
+        io.to(`user_${String(proposal.freelancer)}`).emit("notification", {
+          id: notif._id,
+          type: notif.type,
+          payload: notif.payload,
+          createdAt: notif.createdAt,
+        });
+      }
+    } catch (e) {
+      console.error("Error emitting accept notification:", e);
+    }
 
-    res.json({ proposal, project });
+    res.json(proposal);
   } catch (err) {
     console.error("acceptProposal:", err);
     res.status(500).send("Server Error");
   }
 };
 
-/**
- * Reject proposal (client)
- * route: PATCH /api/proposals/:id/reject
- */
 export const rejectProposal = async (req, res) => {
   try {
-    const propId = req.params.id;
-    const proposal = await Proposal.findById(propId).populate("project");
+    const proposalId = req.params.id;
+    const proposal = await Proposal.findById(proposalId).populate("project");
     if (!proposal) return res.status(404).json({ msg: "Proposal not found" });
 
-    const project = await Project.findById(proposal.project._id);
-    if (String(project.client) !== String(req.user.id)) {
+    if (String(proposal.project.client) !== String(req.user.id)) {
       return res.status(403).json({ msg: "Forbidden" });
     }
 
     proposal.status = "rejected";
     await proposal.save();
 
-    // notify freelancer
     await Notification.create({
       user: proposal.freelancer,
       type: "proposal_rejected",
-      payload: { projectId: project._id, projectTitle: project.title, proposalId: proposal._id },
+      payload: {
+        projectId: proposal.project._id,
+        projectTitle: proposal.project.title,
+        proposalId: proposal._id,
+      },
     });
 
     res.json(proposal);
@@ -145,4 +184,12 @@ export const rejectProposal = async (req, res) => {
     console.error("rejectProposal:", err);
     res.status(500).send("Server Error");
   }
+};
+
+export default {
+  createProposal,
+  getProposalsForClient,
+  getProposalsForFreelancer,
+  acceptProposal,
+  rejectProposal,
 };
