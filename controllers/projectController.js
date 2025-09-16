@@ -1,6 +1,5 @@
-
+// backend/controllers/projectController.js
 import Project from "../models/Project.js";
-
 
 export const createProject = async (req, res) => {
   try {
@@ -10,12 +9,12 @@ export const createProject = async (req, res) => {
       title,
       description,
       budget,
-      status: "open", 
+      status: "open",
     });
     await project.save();
-    
-    await project.populate("client", "name email").execPopulate?.() 
-      .catch(()=>{});
+
+    // Modern syntax for populate doesn't need execPopulate
+    await project.populate("client", "name email");
     res.status(201).json(project);
   } catch (err) {
     console.error("createProject:", err);
@@ -23,17 +22,17 @@ export const createProject = async (req, res) => {
   }
 };
 
-
 export const getProjects = async (req, res) => {
   try {
-    const projects = await Project.find().populate("client", "name email");
+    const projects = await Project.find()
+      .populate("client", "name email")
+      .populate("assignedFreelancer", "_id name"); // Fetching freelancer ID and name
     res.json(projects);
   } catch (err) {
     console.error("getProjects:", err);
     res.status(500).send("Server Error");
   }
 };
-
 
 export const getMyProjects = async (req, res) => {
   try {
@@ -42,12 +41,11 @@ export const getMyProjects = async (req, res) => {
       "name email"
     );
     res.json(projects);
-  } catch (err) {
+  } catch (err) { // 👇 FIX: Added the missing curly braces here
     console.error("getMyProjects:", err);
     res.status(500).send("Server Error");
   }
 };
-
 
 export const updateProject = async (req, res) => {
   try {
@@ -57,12 +55,10 @@ export const updateProject = async (req, res) => {
     const project = await Project.findById(projectId);
     if (!project) return res.status(404).json({ msg: "Project not found" });
 
-    
     if (String(project.client) !== String(req.user.id)) {
       return res.status(403).json({ msg: "Forbidden: not your project" });
     }
 
-    
     const allowed = ["title", "description", "budget", "status", "assignedFreelancer"];
     allowed.forEach((k) => {
       if (updates[k] !== undefined) project[k] = updates[k];
@@ -76,7 +72,6 @@ export const updateProject = async (req, res) => {
     res.status(500).send("Server Error");
   }
 };
-
 
 export const deleteProject = async (req, res) => {
   try {

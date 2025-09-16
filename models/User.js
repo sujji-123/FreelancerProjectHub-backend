@@ -12,6 +12,16 @@ const UserSchema = new mongoose.Schema(
     },
     otp: { type: String },
     otpExpires: { type: Date },
+    skills: { type: [String], default: [] },
+    bio: { type: String, default: '' },
+    rating: { type: Number, default: 0 },
+    reviews: [
+      {
+        client: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        rating: Number,
+        comment: String,
+      },
+    ],
   },
   { timestamps: true }
 );

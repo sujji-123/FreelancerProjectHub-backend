@@ -10,6 +10,7 @@ import taskRoutes from "./routes/taskRoutes.js";
 import deliverableRoutes from "./routes/deliverableRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
+import userRoutes from './routes/userRoutes.js';
 import { setSocketIO } from "./utils/socket.js";
 
 import { Server } from "socket.io";
@@ -35,6 +36,8 @@ app.use("/api/tasks", taskRoutes);
 app.use("/api/deliverables", deliverableRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use('/api/users', userRoutes);
+
 
 // serve uploads or static if needed (keep your existing static handling if present)
 const server = http.createServer(app);
