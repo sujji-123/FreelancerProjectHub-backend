@@ -2,7 +2,13 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+import http from "http";
+import path from "path";
+import { fileURLToPath } from "url";
 import connectDB from "./config/db.js";
+import { initSocket } from "./utils/socket.js"; // We will use the new initSocket function
+
+// Import routes
 import authRoutes from "./routes/auth.js";
 import projectRoutes from "./routes/ProjectRoutes.js";
 import proposalRoutes from "./routes/proposalRoutes.js";
@@ -11,25 +17,39 @@ import deliverableRoutes from "./routes/deliverableRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import userRoutes from './routes/userRoutes.js';
-import { setSocketIO } from "./utils/socket.js";
-
-import { Server } from "socket.io";
-import http from "http";
-import path from "path";
 
 dotenv.config();
-const PORT = process.env.PORT || 5001;
-
-const app = express();
-
-app.use(express.json());
-app.use(cors({ origin: true, credentials: true }));
-
-// connect to DB
 connectDB();
 
+const app = express();
+const PORT = process.env.PORT || 5001;
+
+// Define the allowed origins for CORS
+const allowedOrigins = [
+  "http://localhost:3000", // Common React port
+  "http://localhost:5173"  // Vite/React port
+];
+
+// Setup CORS for all HTTP requests
+app.use(cors({
+  origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true
+}));
+
+app.use(express.json());
+
 // Serve static files from the "uploads" directory
-app.use('/uploads', express.static('uploads'));
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // API routes
 app.use("/api/auth", authRoutes);
@@ -41,58 +61,13 @@ app.use("/api/messages", messageRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use('/api/users', userRoutes);
 
-
-// serve uploads or static if needed (keep your existing static handling if present)
+// Create the HTTP server from the Express app
 const server = http.createServer(app);
 
-// Socket.IO server
-const io = new Server(server, {
-  cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:5173", // match your frontend dev origin
-    methods: ["GET", "POST"],
-    credentials: true,
-  },
-});
+// Initialize the Socket.IO server and pass it the allowed origins
+initSocket(server, allowedOrigins);
 
-// store io instance so controllers can access it
-setSocketIO(io);
-
-// socket connection handling
-io.on("connection", (socket) => {
-  console.log("✅ Socket connected:", socket.id);
-
-  // clients should emit "register" with their userId once they connect
-  // e.g. socket.emit('register', { userId: '<userId>' })
-  socket.on("register", ({ userId }) => {
-    try {
-      if (userId) {
-        const room = `user_${String(userId)}`;
-        socket.join(room);
-        console.log(`Socket ${socket.id} joined room ${room}`);
-      }
-    } catch (err) {
-      console.error("register socket error:", err);
-    }
-  });
-
-  // project chat join (if used across your collab feature)
-  socket.on("joinProject", ({ projectId }) => {
-    if (projectId) {
-      socket.join(`project_${projectId}`);
-      console.log(`Socket ${socket.id} joined project_${projectId}`);
-    }
-  });
-
-  // project chat messages - keep your existing behavior if already implemented
-  socket.on("sendMessage", ({ projectId, message }) => {
-    io.to(`project_${projectId}`).emit("newMessage", message);
-  });
-
-  socket.on("disconnect", () => {
-    console.log("❌ Socket disconnected:", socket.id);
-  });
-});
-
+// Start the server
 server.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });

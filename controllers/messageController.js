@@ -1,19 +1,40 @@
-import Message from "../models/Message.js";
+import Message from '../models/Message.js';
+import User from '../models/User.js'; // Import the User model
 
-export const createMessage = async (req, res) => {
+// Get all messages for a project
+export const getMessagesByProject = async (req, res) => {
   try {
-    const msg = await Message.create(req.body);
-    res.json(msg);
+    const messages = await Message.find({ project: req.params.projectId }).populate('sender', 'name');
+    res.json(messages);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err.message);
+    res.status(500).send('Server Error');
   }
 };
 
-export const getMessagesByProject = async (req, res) => {
+// Create a new message
+export const createMessage = async (req, res) => {
+  const { project, content } = req.body;
+  const sender = req.user.id;
+
   try {
-    const msgs = await Message.find({ project_id: req.params.projectId }).populate("sender_id", "name");
-    res.json(msgs);
+    let message = new Message({
+      project,
+      sender,
+      content,
+    });
+
+    await message.save();
+
+    // **THIS IS THE FIX:**
+    // After saving, manually populate the 'sender' field
+    // so the full user object is returned in the response.
+    // This is crucial for the WebSocket emit to have the necessary data.
+    message = await Message.findById(message._id).populate('sender', 'name');
+
+    res.status(201).json(message);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err.message);
+    res.status(500).send('Server Error');
   }
 };
