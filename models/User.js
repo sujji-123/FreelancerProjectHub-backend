@@ -1,3 +1,4 @@
+// backend/models/User.js
 import mongoose from 'mongoose';
 
 const UserSchema = new mongoose.Schema(
@@ -22,6 +23,7 @@ const UserSchema = new mongoose.Schema(
         comment: String,
       },
     ],
+    profilePicture: { type: String, default: '' },
   },
   { timestamps: true }
 );

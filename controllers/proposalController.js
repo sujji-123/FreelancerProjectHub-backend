@@ -1,3 +1,4 @@
+// backend/controllers/proposalController.js
 import Proposal from "../models/Proposal.js";
 import Project from "../models/Project.js";
 import Notification from "../models/Notification.js";
@@ -186,10 +187,56 @@ export const rejectProposal = async (req, res) => {
   }
 };
 
+export const withdrawProposal = async (req, res) => {
+    try {
+        const proposalId = req.params.id;
+        const proposal = await Proposal.findById(proposalId).populate('project');
+
+        if (!proposal) {
+            return res.status(404).json({ msg: 'Proposal not found' });
+        }
+
+        if (String(proposal.freelancer) !== String(req.user.id)) {
+            return res.status(403).json({ msg: 'Forbidden' });
+        }
+
+        if (proposal.status !== 'pending') {
+            return res.status(400).json({ msg: 'Cannot withdraw a proposal that is not pending' });
+        }
+
+        await Proposal.findByIdAndDelete(proposalId);
+
+        // Notify client
+        const notification = await Notification.create({
+            user: proposal.project.client,
+            type: 'proposal_withdrawn',
+            payload: {
+                projectId: proposal.project._id,
+                projectTitle: proposal.project.title,
+                proposalId: proposal._id,
+                freelancerName: req.user.name
+            },
+        });
+
+        const io = getSocketIO();
+        if (io) {
+            io.to(`user_${String(proposal.project.client)}`).emit('notification', notification);
+        }
+
+        res.json({ msg: 'Proposal withdrawn' });
+    } catch (err) {
+        console.error('withdrawProposal:', err);
+        res.status(500).send('Server Error');
+    }
+};
+
+
 export default {
   createProposal,
   getProposalsForClient,
   getProposalsForFreelancer,
   acceptProposal,
   rejectProposal,
+  withdrawProposal,
 };
+// proposalController.js

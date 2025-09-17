@@ -28,6 +28,9 @@ app.use(cors({ origin: true, credentials: true }));
 // connect to DB
 connectDB();
 
+// Serve static files from the "uploads" directory
+app.use('/uploads', express.static('uploads'));
+
 // API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/projects", projectRoutes);
