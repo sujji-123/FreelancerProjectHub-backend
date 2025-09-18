@@ -20,3 +20,4 @@ const auth = async (req, res, next) => {
 };
 
 export default auth;
+// backend/middleware/authMiddleware.js

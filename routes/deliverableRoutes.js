@@ -1,8 +1,13 @@
 // backend/routes/deliverableRoutes.js
 import express from "express";
 import multer from "multer";
-import { uploadDeliverable, getDeliverablesByProject, updateDeliverable } from "../controllers/deliverableController.js";
-import auth from "../middleware/authMiddleware.js"; // Import auth middleware
+import auth from "../middleware/authMiddleware.js";
+import {
+  uploadDeliverable,
+  getDeliverablesByProject,
+  updateDeliverable,
+  deleteDeliverable,
+} from "../controllers/deliverableController.js";
 
 const router = express.Router();
 
@@ -13,13 +18,10 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// FIX: Added 'auth' middleware to protect this route and identify the uploader
+// Protected endpoints
 router.post("/", auth, upload.single("file"), uploadDeliverable);
-
-// FIX: Changed route to match frontend and added auth middleware
 router.get("/project/:projectId", auth, getDeliverablesByProject);
-
-// FIX: Added auth middleware
 router.put("/:id", auth, updateDeliverable);
+router.delete("/:id", auth, deleteDeliverable);
 
 export default router;

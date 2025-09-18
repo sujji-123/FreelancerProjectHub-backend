@@ -1,8 +1,8 @@
-import { Server } from 'socket.io';
+import { Server } from "socket.io";
 
 let io;
 
-export const initSocket = (server, allowedOrigins) => {
+export const initSocket = (server, allowedOrigins = "*") => {
   io = new Server(server, {
     cors: {
       origin: allowedOrigins,
@@ -11,36 +11,35 @@ export const initSocket = (server, allowedOrigins) => {
     },
   });
 
-  io.on('connection', (socket) => {
-    console.log('✅ Socket connected:', socket.id);
+  io.on("connection", (socket) => {
+    console.log("✅ Socket connected:", socket.id);
 
-    socket.on('joinProject', ({ projectId }) => {
-      if (projectId) {
-        const roomName = `project_${projectId}`;
-        socket.join(roomName);
-        console.log(`Socket ${socket.id} joined room ${roomName}`);
+    // Join a project room: client should emit { projectId } to join
+    socket.on("joinProject", ({ projectId }) => {
+      try {
+        if (!projectId) return;
+        const room = `project_${projectId}`;
+        socket.join(room);
+        console.log(`Socket ${socket.id} joined room ${room}`);
+      } catch (e) {
+        console.error("joinProject error", e);
       }
     });
 
-    // **THIS IS THE FIX:**
-    // We are changing 'io.to' to 'socket.broadcast.to'.
-    // This sends the message to everyone in the room *except for the original sender*.
-    socket.on('sendMessage', ({ projectId, message }) => {
-      if (projectId && message) {
-        socket.broadcast.to(`project_${projectId}`).emit('newMessage', message);
-      }
-    });
-    
-    socket.on("register", ({ userId }) => {
-      if (userId) {
-        const roomName = `user_${String(userId)}`;
-        socket.join(roomName);
-        console.log(`Socket ${socket.id} joined notification room ${roomName}`);
+    // Leave a project room
+    socket.on("leaveProject", ({ projectId }) => {
+      try {
+        if (!projectId) return;
+        const room = `project_${projectId}`;
+        socket.leave(room);
+        console.log(`Socket ${socket.id} left room ${room}`);
+      } catch (e) {
+        console.error("leaveProject error", e);
       }
     });
 
-    socket.on('disconnect', () => {
-      console.log('❌ Socket disconnected:', socket.id);
+    socket.on("disconnect", () => {
+      console.log("❌ Socket disconnected:", socket.id);
     });
   });
 
@@ -49,7 +48,7 @@ export const initSocket = (server, allowedOrigins) => {
 
 export const getSocketIO = () => {
   if (!io) {
-    throw new Error('Socket.io not initialized!');
+    throw new Error("Socket.io not initialized!");
   }
   return io;
 };
