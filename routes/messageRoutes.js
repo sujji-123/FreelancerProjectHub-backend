@@ -1,14 +1,24 @@
-// backend/routes/messageRoutes.js
 import express from "express";
-import { createMessage, getMessagesByProject } from "../controllers/messageController.js";
-import auth from "../middleware/authMiddleware.js"; // Import auth middleware
+import { 
+  createMessage, 
+  getMessagesByProject, 
+  getDirectMessages, 
+  createDirectMessage,
+  getConversations // ADDED: New function to get conversations
+} from "../controllers/messageController.js";
+import auth from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// This route should be protected to know who the sender is
+// Project messages
 router.post("/", auth, createMessage);
-
-// FIX: Changed route to match what the frontend service (getMessagesByProject) is calling
 router.get("/project/:projectId", auth, getMessagesByProject);
+
+// Direct messages
+router.get("/direct/:userId", auth, getDirectMessages);
+router.post("/direct", auth, createDirectMessage);
+
+// ADDED: Route to get user's conversations
+router.get("/conversations", auth, getConversations);
 
 export default router;

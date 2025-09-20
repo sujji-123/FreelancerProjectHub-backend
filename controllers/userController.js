@@ -29,7 +29,6 @@ export const updateProfile = async (req, res) => {
       user.skills = Array.isArray(skills) ? skills : skills.split(',').map(skill => skill.trim());
     }
 
-
     await user.save();
     res.json(user);
   } catch (err) {
@@ -78,4 +77,15 @@ export const getAllFreelancers = async (req, res) => {
         console.error(err.message);
         res.status(500).send('Server Error');
     }
+};
+
+// ADDED: Get all users (for messaging)
+export const getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find().select('-password'); // Exclude passwords
+    res.json(users);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
 };

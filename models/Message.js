@@ -2,11 +2,11 @@ import mongoose from "mongoose";
 
 const messageSchema = new mongoose.Schema(
   {
-    // FIX: Changed 'project_id' to 'project'
-    project: { type: mongoose.Schema.Types.ObjectId, ref: "Project", required: true },
-    // FIX: Changed 'sender_id' to 'sender'
+    project: { type: mongoose.Schema.Types.ObjectId, ref: "Project" }, 
     sender: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    receiver: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     content: { type: String, required: true },
+    read: { type: Boolean, default: false }, // ADDED: Read status for messages
   },
   { timestamps: true }
 );
