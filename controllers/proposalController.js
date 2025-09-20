@@ -123,8 +123,49 @@ export const acceptProposal = async (req, res) => {
       return res.status(403).json({ msg: "Forbidden" });
     }
 
+    // --- AUTOMATION LOGIC ---
+    // 1. Update the accepted proposal's status
     proposal.status = "accepted";
     await proposal.save();
+
+    // 2. Update the project's status and assign the freelancer
+    await Project.findByIdAndUpdate(proposal.project._id, {
+        status: 'in-progress',
+        assignedFreelancer: proposal.freelancer
+    });
+
+    // 3. Find and reject all other pending proposals for this project
+    const otherProposals = await Proposal.find({
+        project: proposal.project._id,
+        _id: { $ne: proposalId }, // Exclude the accepted proposal
+        status: 'pending'
+    }).populate('project');
+
+    for (const p of otherProposals) {
+        p.status = 'rejected';
+        await p.save();
+        
+        const rejectNotif = await Notification.create({
+            user: p.freelancer,
+            type: "proposal_rejected",
+            payload: {
+                projectId: p.project._id,
+                projectTitle: p.project.title,
+                proposalId: p._id,
+                reason: "Another proposal was accepted for this project."
+            },
+        });
+        
+        try {
+            const io = getSocketIO();
+            if (io) {
+                io.to(`user_${String(p.freelancer)}`).emit("notification", rejectNotif);
+            }
+        } catch (e) {
+            console.error("Error emitting auto-reject notification:", e);
+        }
+    }
+    // --- END AUTOMATION ---
 
     const notif = await Notification.create({
       user: proposal.freelancer,
@@ -239,4 +280,3 @@ export default {
   rejectProposal,
   withdrawProposal,
 };
-// proposalController.js

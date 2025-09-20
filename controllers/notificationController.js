@@ -34,3 +34,20 @@ export const markRead = async (req, res) => {
     res.status(500).send("Server Error");
   }
 };
+
+/**
+ * Mark all notifications as read for the logged-in user
+ * PATCH /api/notifications/read-all
+ */
+export const markAllRead = async (req, res) => {
+  try {
+    await Notification.updateMany(
+      { user: req.user.id, read: false },
+      { $set: { read: true } }
+    );
+    res.status(200).json({ msg: "All notifications marked as read." });
+  } catch (err) {
+    console.error("markAllRead:", err);
+    res.status(500).send("Server Error");
+  }
+};

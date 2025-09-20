@@ -18,6 +18,7 @@ import messageRoutes from "./routes/messageRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import userRoutes from './routes/userRoutes.js';
 import paymentRoutes from "./routes/paymentRoutes.js"; // Import payment routes
+import feedbackRoutes from './routes/feedbackRoutes.js';
 
 dotenv.config();
 connectDB();
@@ -54,6 +55,7 @@ app.use("/api/messages", messageRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use('/api/users', userRoutes);
 app.use("/api/payment", paymentRoutes); // Add payment routes
+app.use("/api/feedback", feedbackRoutes);
 
 const server = http.createServer(app);
 initSocket(server, allowedOrigins);

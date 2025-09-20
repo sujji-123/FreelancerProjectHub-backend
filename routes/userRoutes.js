@@ -6,7 +6,10 @@ import {
   uploadProfilePicture, 
   getAllClients, 
   getAllFreelancers,
-  getAllUsers // ADDED: Import the new function
+  getAllUsers,
+  changePassword,
+  updateNotificationPreferences,
+  getCollaboratedUsers // IMPORTED
 } from '../controllers/userController.js';
 import auth from '../middleware/authMiddleware.js';
 import multer from 'multer';
@@ -17,9 +20,14 @@ const upload = multer({ dest: 'uploads/' });
 router.get('/profile', auth, getProfile);
 router.put('/profile', auth, updateProfile);
 router.post('/profile/picture', auth, upload.single('profilePicture'), uploadProfilePicture);
+router.put('/profile/change-password', auth, changePassword);
+router.put('/profile/notification-preferences', auth, updateNotificationPreferences);
+
+// --- NEW ROUTE ADDED ---
+router.get('/collaborated', auth, getCollaboratedUsers);
+
 router.get('/clients', auth, getAllClients);
 router.get('/freelancers', auth, getAllFreelancers);
-// ADDED: Route to get all users (for messaging)
 router.get('/', auth, getAllUsers);
 
 export default router;

@@ -23,7 +23,10 @@ export const createProject = async (req, res) => {
 
 export const getProjects = async (req, res) => {
   try {
-    const projects = await Project.find({ status: 'open' })
+    // FIX: Removed the { status: 'open' } filter to return all projects.
+    // This ensures that even in-progress or completed projects are available
+    // for the frontend to look up.
+    const projects = await Project.find({})
       .populate("client", "name email")
       .populate("assignedFreelancer", "_id name");
     res.json(projects);

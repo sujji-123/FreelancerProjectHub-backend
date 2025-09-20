@@ -24,6 +24,8 @@ const UserSchema = new mongoose.Schema(
       },
     ],
     profilePicture: { type: String, default: '' },
+    // --- FIELD ADDED ---
+    emailNotificationsEnabled: { type: Boolean, default: true },
   },
   { timestamps: true }
 );
