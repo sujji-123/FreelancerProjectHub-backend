@@ -13,7 +13,6 @@ export const createProject = async (req, res) => {
     });
     await project.save();
 
-    // Modern syntax for populate doesn't need execPopulate
     await project.populate("client", "name email");
     res.status(201).json(project);
   } catch (err) {
@@ -24,9 +23,9 @@ export const createProject = async (req, res) => {
 
 export const getProjects = async (req, res) => {
   try {
-    const projects = await Project.find()
+    const projects = await Project.find({ status: 'open' })
       .populate("client", "name email")
-      .populate("assignedFreelancer", "_id name"); // Fetching freelancer ID and name
+      .populate("assignedFreelancer", "_id name");
     res.json(projects);
   } catch (err) {
     console.error("getProjects:", err);
@@ -41,7 +40,7 @@ export const getMyProjects = async (req, res) => {
       "name email"
     );
     res.json(projects);
-  } catch (err) { // 👇 FIX: Added the missing curly braces here
+  } catch (err) {
     console.error("getMyProjects:", err);
     res.status(500).send("Server Error");
   }
