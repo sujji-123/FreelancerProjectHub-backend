@@ -123,11 +123,13 @@ export const addAmount = async (req, res) => {
   }
 };
 
-// Send money to another user
-export const sendMoney = async (req, res) => {
+// --- MODIFICATION START ---
+// Renamed from sendMoney to transferMoney to match frontend service call
+export const transferMoney = async (req, res) => { 
+// --- MODIFICATION END ---
   try {
     const fromUserId = req.user.id;
-    const { toUserId, amount } = req.body;
+    const { toUserId, amount } = req.body; // 'toUserId' comes from the frontend
     if (!toUserId || !amount || amount <= 0) return res.status(400).json({ message: 'Invalid parameters' });
 
     const fromAccount = await BankAccount.findOne({ user: fromUserId });
@@ -137,6 +139,11 @@ export const sendMoney = async (req, res) => {
     if (!toAccount) return res.status(404).json({ message: 'Recipient bank account not found' });
 
     if (fromAccount.balance < Number(amount)) return res.status(400).json({ message: 'Insufficient balance' });
+    
+    // --- ADDITION START ---
+    const recipientUser = await User.findById(toUserId);
+    if (!recipientUser) return res.status(404).json({ message: 'Recipient user does not exist' });
+    // --- ADDITION END ---
 
     fromAccount.balance -= Number(amount);
     toAccount.balance += Number(amount);
@@ -147,11 +154,15 @@ export const sendMoney = async (req, res) => {
     await Transaction.create({
       fromAccount: fromAccount._id,
       toAccount: toAccount._id,
+      // --- ADDITION START ---
+      // Save the direct User ID of the recipient.
+      recipient: toUserId, 
+      // --- ADDITION END ---
       amount: Number(amount),
       type: 'transfer',
       status: 'completed',
       performedBy: fromUserId,
-      note: `Payment from client to freelancer`,
+      note: `Payment from client to freelancer ${recipientUser.name}`,
     });
 
     return res.json({ message: 'Transfer successful', fromBalance: fromAccount.balance });
@@ -212,10 +223,15 @@ export const getTransactions = async (req, res) => {
     const account = await BankAccount.findOne({ user: userId });
     if (!account) return res.status(404).json({ message: 'Bank account not found' });
 
+    // --- MODIFICATION START ---
+    // Modified the query to populate the recipient's name for display.
     const txs = await Transaction.find({
       $or: [{ fromAccount: account._id }, { toAccount: account._id }],
-    }).sort({ createdAt: -1 });
-
+    })
+    .populate('recipient', 'name') // This fetches the recipient's name
+    .sort({ createdAt: -1 });
+    // --- MODIFICATION END ---
+    
     return res.json({ transactions: txs });
   } catch (err) {
     console.error(err);

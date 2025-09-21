@@ -2,24 +2,27 @@
 import express from 'express';
 import auth from '../middleware/authMiddleware.js';
 import {
-  createBankAccount,
-  requestBankLoginOtp,
-  verifyBankLogin,
-  addAmount,
-  sendMoney,
-  checkBalance,
-  withdraw,
-  getTransactions,
+    createBankAccount,
+    requestBankLoginOtp,
+    verifyBankLogin,
+    addAmount,
+    transferMoney,
+    checkBalance,
+    withdraw,
+    getTransactions,
 } from '../controllers/paymentController.js';
 
 const router = express.Router();
 
-router.post('/account', auth, createBankAccount);
-router.post('/account/request-otp', requestBankLoginOtp);
-router.post('/account/verify', verifyBankLogin);
-router.post('/account/add', auth, addAmount);
-router.post('/transfer', auth, sendMoney);
-router.get('/balance', auth, checkBalance);
+// Public routes for account creation and login
+router.post('/create-account', auth, createBankAccount);
+router.post('/login/request-otp', auth, requestBankLoginOtp);
+router.post('/login/verify', auth, verifyBankLogin);
+
+// Protected routes (require user to be logged into the main app)
+router.post('/add-amount', auth, addAmount);
+router.post('/transfer', auth, transferMoney);
+router.get('/balance', auth, checkBalance); // Correct route is /balance
 router.post('/withdraw', auth, withdraw);
 router.get('/transactions', auth, getTransactions);
 
