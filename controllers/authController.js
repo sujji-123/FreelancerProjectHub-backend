@@ -62,7 +62,15 @@ export const verifyOtpAndLogin = async (req, res) => {
     user.otpExpires = undefined;
     await user.save();
 
-    const payload = { user: { id: user.id } };
+    // --- FIX: Added role, name, and email to JWT payload ---
+    const payload = { 
+      user: { 
+        id: user.id,
+        role: user.role,
+        name: user.name,
+        email: user.email
+      } 
+    };
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1d' });
 
     return res.json({
@@ -99,8 +107,16 @@ export const login = async (req, res) => {
         msg: 'Please verify your email with OTP before logging in.',
       });
     }
-
-    const payload = { user: { id: user.id } };
+    
+    // --- FIX: Added role, name, and email to JWT payload ---
+    const payload = { 
+      user: { 
+        id: user.id,
+        role: user.role,
+        name: user.name,
+        email: user.email
+      } 
+    };
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1d' });
 
     return res.json({
