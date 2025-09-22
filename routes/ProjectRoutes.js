@@ -1,3 +1,4 @@
+// backend/routes/ProjectRoutes.js
 import express from "express";
 import {
   createProject,
@@ -5,7 +6,8 @@ import {
   getMyProjects,
   updateProject,
   deleteProject,
-  getProjectById // IMPORTED
+  getProjectById,
+  getFreelancerProjects
 } from "../controllers/projectController.js";
 import auth from "../middleware/authMiddleware.js";
 
@@ -14,7 +16,7 @@ const router = express.Router();
 router.post("/", auth, createProject);
 router.get("/", auth, getProjects);
 router.get("/my-projects", auth, getMyProjects);
-// --- NEW ROUTE ADDED ---
+router.get("/freelancer-projects", auth, getFreelancerProjects);
 router.get("/:id", auth, getProjectById);
 
 router.put("/:id", auth, updateProject);

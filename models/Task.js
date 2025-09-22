@@ -1,3 +1,4 @@
+// backend/models/Task.js
 import mongoose from "mongoose";
 
 const taskSchema = new mongoose.Schema(
@@ -7,7 +8,6 @@ const taskSchema = new mongoose.Schema(
     description: { type: String, default: "" },
     status: { type: String, enum: ["todo", "inprogress", "done"], default: "todo" },
     assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
-    // NEW: who created the task (used for delete-permission)
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   },
   { timestamps: true }

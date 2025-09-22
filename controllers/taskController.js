@@ -1,10 +1,7 @@
+// backend/controllers/taskController.js
 import Task from "../models/Task.js";
 import { getSocketIO } from "../utils/socket.js";
 
-/**
- * Create a task. Auth required (req.user is set by auth middleware)
- * Request body must include: { project, title, description?, assignedTo? }
- */
 export const createTask = async (req, res) => {
   try {
     const { project, title, description, assignedTo } = req.body;
@@ -22,12 +19,10 @@ export const createTask = async (req, res) => {
       status: "todo",
     });
 
-    // populate small useful fields for frontend
     const populated = await Task.findById(task._id)
       .populate("createdBy", "name _id")
       .populate("assignedTo", "name _id");
 
-    // Emit to project room so both client and freelancer (if joined) get update
     try {
       const io = getSocketIO();
       io.to(`project_${project}`).emit("taskCreated", populated);
@@ -42,10 +37,6 @@ export const createTask = async (req, res) => {
   }
 };
 
-/**
- * Get all tasks for a project (visible to both freelancer & client).
- * Route: GET /api/tasks/project/:projectId
- */
 export const getTasksByProject = async (req, res) => {
   try {
     const tasks = await Task.find({ project: req.params.projectId })
@@ -59,11 +50,6 @@ export const getTasksByProject = async (req, res) => {
   }
 };
 
-/**
- * Update a task: allow status change by either user and other minor updates.
- * Route: PUT /api/tasks/:id
- * Body may include: { title, description, status, assignedTo }
- */
 export const updateTask = async (req, res) => {
   try {
     const updates = {};
@@ -78,7 +64,6 @@ export const updateTask = async (req, res) => {
 
     if (!task) return res.status(404).json({ error: "Task not found" });
 
-    // Emit update
     try {
       const io = getSocketIO();
       io.to(`project_${task.project.toString()}`).emit("taskUpdated", task);
@@ -93,23 +78,17 @@ export const updateTask = async (req, res) => {
   }
 };
 
-/**
- * Delete task: ONLY the creator can delete.
- * Route: DELETE /api/tasks/:id
- */
 export const deleteTask = async (req, res) => {
   try {
     const task = await Task.findById(req.params.id);
     if (!task) return res.status(404).json({ error: "Task not found" });
 
-    // Only creator can delete
     if (task.createdBy.toString() !== req.user.id) {
       return res.status(403).json({ error: "Only the task creator can delete this task" });
     }
 
     await task.deleteOne();
 
-    // Emit deletion to project room
     try {
       const io = getSocketIO();
       io.to(`project_${task.project.toString()}`).emit("taskDeleted", { _id: req.params.id });
@@ -122,4 +101,27 @@ export const deleteTask = async (req, res) => {
     console.error("Delete Task Error:", err);
     res.status(500).json({ error: err.message });
   }
+};
+
+export const updateTaskStatus = async (req, res) => {
+    try {
+        const { status } = req.body;
+        const task = await Task.findByIdAndUpdate(req.params.id, { status }, { new: true })
+            .populate("createdBy", "name _id")
+            .populate("assignedTo", "name _id");
+
+        if (!task) return res.status(404).json({ error: "Task not found" });
+
+        try {
+            const io = getSocketIO();
+            io.to(`project_${task.project.toString()}`).emit("taskUpdated", task);
+        } catch (e) {
+            console.warn("Socket emit skipped (not initialized?)", e.message || e);
+        }
+
+        res.json(task);
+    } catch (err) {
+        console.error("Update Task Status Error:", err);
+        res.status(500).json({ error: err.message });
+    }
 };
