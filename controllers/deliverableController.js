@@ -1,6 +1,8 @@
+// backend/controllers/deliverableController.js
 import Deliverable from "../models/Deliverable.js";
 import { getSocketIO } from "../utils/socket.js";
 import path from "path";
+import fs from 'fs'; // Import the file system module
 
 /**
  * Upload a deliverable (file). Auth required.
@@ -15,8 +17,7 @@ export const uploadDeliverable = async (req, res) => {
 
     const uploadedBy = req.user.id;
 
-    const fileUrl = req.file.path || req.file.filename || "";
-    // create deliverable
+    const fileUrl = req.file.path.replace(/\\/g, "/");
     const d = await Deliverable.create({
       project,
       fileUrl,
@@ -27,7 +28,6 @@ export const uploadDeliverable = async (req, res) => {
 
     const populated = await Deliverable.findById(d._id).populate("uploadedBy", "name _id");
 
-    // emit to project room
     try {
       const io = getSocketIO();
       io.to(`project_${project}`).emit("deliverableUploaded", populated);
@@ -54,9 +54,6 @@ export const getDeliverablesByProject = async (req, res) => {
   }
 };
 
-/**
- * Update deliverable (approve/reject or metadata). Auth required.
- */
 export const updateDeliverable = async (req, res) => {
   try {
     const deliverable = await Deliverable.findByIdAndUpdate(req.params.id, req.body, { new: true }).populate(
@@ -93,7 +90,16 @@ export const deleteDeliverable = async (req, res) => {
     }
 
     const projectId = deliverable.project.toString();
-    // If you want to remove the file from disk, you can do that here.
+    
+    // Remove the file from the filesystem
+    fs.unlink(path.join(path.resolve(), deliverable.fileUrl), (err) => {
+        if (err) {
+            console.error("Failed to delete physical file:", err);
+            // Decide if you want to stop the process if file deletion fails.
+            // For this case, we'll proceed to delete the DB record anyway.
+        }
+    });
+
     await deliverable.deleteOne();
 
     try {
