@@ -1,6 +1,7 @@
 // backend/controllers/userController.js
 import User from '../models/User.js';
-import Project from '../models/Project.js'; // Import Project model
+import Project from '../models/Project.js';
+import Review from '../models/Review.js'; // ADDED
 import bcrypt from 'bcryptjs';
 
 // ... (getProfile, updateProfile, changePassword, etc., remain the same)
@@ -15,7 +16,7 @@ export const getProfile = async (req, res) => {
 };
 
 export const updateProfile = async (req, res) => {
-  const { name, bio, skills } = req.body;
+  const { name, bio, skills, position } = req.body; // ADDED position
   try {
     let user = await User.findById(req.user.id);
     if (!user) {
@@ -23,6 +24,7 @@ export const updateProfile = async (req, res) => {
     }
     user.name = name || user.name;
     user.bio = bio || user.bio;
+    user.position = position || user.position; // ADDED
     if (skills) {
       user.skills = Array.isArray(skills) ? skills : skills.split(',').map(skill => skill.trim());
     }
@@ -97,6 +99,39 @@ export const getCollaboratedUsers = async (req, res) => {
         console.error(err.message);
         res.status(500).send('Server Error');
     }
+};
+
+// --- NEW FUNCTION ADDED ---
+export const getUserProfileById = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select('-password -otp -otpExpires');
+    if (!user) {
+      return res.status(404).json({ msg: 'User not found' });
+    }
+
+    const reviews = await Review.find({ reviewee: req.params.id })
+      .populate('reviewer', 'name profilePicture')
+      .sort({ createdAt: -1 });
+
+    let projects;
+    if (user.role === 'client') {
+      projects = await Project.find({ client: req.params.id })
+        .populate('assignedFreelancer', 'name')
+        .sort({ createdAt: -1 });
+    } else { // freelancer
+      projects = await Project.find({ assignedFreelancer: req.params.id })
+        .populate('client', 'name')
+        .sort({ createdAt: -1 });
+    }
+
+    res.json({ user, reviews, projects });
+  } catch (err) {
+    console.error(err.message);
+    if (err.kind === 'ObjectId') {
+        return res.status(404).json({ msg: 'User not found' });
+    }
+    res.status(500).send('Server Error');
+  }
 };
 
 // ... (uploadProfilePicture, getAllClients, etc., remain the same)

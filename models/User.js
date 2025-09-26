@@ -24,6 +24,7 @@ const UserSchema = new mongoose.Schema(
       },
     ],
     profilePicture: { type: String, default: '' },
+    position: { type: String, default: '' }, // ADDED: Position for clients
     // --- FIELD ADDED ---
     emailNotificationsEnabled: { type: Boolean, default: true },
   },

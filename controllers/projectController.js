@@ -25,7 +25,7 @@ export const createProject = async (req, res) => {
 export const getProjects = async (req, res) => {
   try {
     const projects = await Project.find({})
-      .populate("client", "name email")
+      .populate("client", "name email rating") // MODIFIED: Added rating
       .populate("assignedFreelancer", "_id name");
     res.json(projects);
   } catch (err) {

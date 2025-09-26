@@ -9,7 +9,8 @@ import {
   getAllUsers,
   changePassword,
   updateNotificationPreferences,
-  getCollaboratedUsers // IMPORTED
+  getCollaboratedUsers,
+  getUserProfileById // IMPORTED
 } from '../controllers/userController.js';
 import auth from '../middleware/authMiddleware.js';
 import multer from 'multer';
@@ -23,11 +24,13 @@ router.post('/profile/picture', auth, upload.single('profilePicture'), uploadPro
 router.put('/profile/change-password', auth, changePassword);
 router.put('/profile/notification-preferences', auth, updateNotificationPreferences);
 
-// --- NEW ROUTE ADDED ---
 router.get('/collaborated', auth, getCollaboratedUsers);
 
 router.get('/clients', auth, getAllClients);
 router.get('/freelancers', auth, getAllFreelancers);
 router.get('/', auth, getAllUsers);
+
+// NEW ROUTE: Must be last to avoid overriding other routes like /profile
+router.get('/:id', auth, getUserProfileById);
 
 export default router;
