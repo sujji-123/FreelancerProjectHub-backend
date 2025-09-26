@@ -1,13 +1,8 @@
 // backend/controllers/deliverableController.js
 import Deliverable from "../models/Deliverable.js";
 import { getSocketIO } from "../utils/socket.js";
-import path from "path";
-import fs from 'fs'; // Import the file system module
+import { cloudinary } from '../config/cloudinary.js'; // ADDED: Import Cloudinary config
 
-/**
- * Upload a deliverable (file). Auth required.
- * Expects multer to have placed file in req.file and body to contain project and description
- */
 export const uploadDeliverable = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded." });
@@ -17,10 +12,14 @@ export const uploadDeliverable = async (req, res) => {
 
     const uploadedBy = req.user.id;
 
-    const fileUrl = req.file.path.replace(/\\/g, "/");
+    // MODIFIED: Get URL and public_id from Cloudinary via req.file
+    const fileUrl = req.file.path;
+    const public_id = req.file.filename;
+
     const d = await Deliverable.create({
       project,
       fileUrl,
+      public_id, // ADDED
       description: description || "",
       uploadedBy,
       status: "pending",
@@ -76,10 +75,6 @@ export const updateDeliverable = async (req, res) => {
   }
 };
 
-/**
- * Delete deliverable: only uploader can delete.
- * Route: DELETE /api/deliverables/:id
- */
 export const deleteDeliverable = async (req, res) => {
   try {
     const deliverable = await Deliverable.findById(req.params.id);
@@ -91,14 +86,10 @@ export const deleteDeliverable = async (req, res) => {
 
     const projectId = deliverable.project.toString();
     
-    // Remove the file from the filesystem
-    fs.unlink(path.join(path.resolve(), deliverable.fileUrl), (err) => {
-        if (err) {
-            console.error("Failed to delete physical file:", err);
-            // Decide if you want to stop the process if file deletion fails.
-            // For this case, we'll proceed to delete the DB record anyway.
-        }
-    });
+    // MODIFIED: Remove the file from Cloudinary instead of the local filesystem
+    if (deliverable.public_id) {
+        await cloudinary.uploader.destroy(deliverable.public_id);
+    }
 
     await deliverable.deleteOne();
 

@@ -8,14 +8,11 @@ import {
   updateDeliverable,
   deleteDeliverable,
 } from "../controllers/deliverableController.js";
+import { storage } from '../config/cloudinary.js'; // MODIFIED: Import Cloudinary storage
 
 const router = express.Router();
 
-// Set up multer for file storage
-const storage = multer.diskStorage({
-  destination: "uploads/",
-  filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
-});
+// MODIFIED: Set up multer to use Cloudinary storage instead of local disk
 const upload = multer({ storage });
 
 // Protected endpoints
