@@ -32,3 +32,5 @@ This is the backend service for **Freelancer Project Hub**, a platform that conn
 - `/routes` – API routes
 - `/controllers` – Business logic
 - `/sockets` – Real-time chat logic
+# deployed link: 
+- http://51.20.85.41 
